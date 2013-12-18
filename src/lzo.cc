@@ -56,13 +56,12 @@ int decompress(const unsigned char *input, unsigned char *output, lzo_uint in_le
     return 0;
   } else {
     if (r == LZO_E_OUTPUT_OVERRUN) {
-      throw "LZO_E_OUTPUT_OVERRUN";
+      return -1;
     } else if (r ==  LZO_E_INPUT_NOT_CONSUMED) {
-      throw "LZO_E_INPUT_NOT_CONSUMED";
+      return -1;
     } else {
-      throw "";
+      throw "lzo failed to decompress";
     }
-    return -1;
   }
 }
 
