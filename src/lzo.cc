@@ -43,14 +43,14 @@ int compress(const unsigned char *input, unsigned char *output, lzo_uint in_len,
   }
 }
 
-int decompress(const unsigned char *input, unsigned char *output, lzo_uint in_len, lzo_uint& out_len) {
+int decompress(const unsigned char *input, unsigned char *output, lzo_uint& in_len, lzo_uint& out_len) {
   int r;
 
   if (lzo_init() != LZO_E_OK) {
     throw "lzo cannot initialize: this usually indicates a compiler error";
   }
 
-  r = lzo1x_decompress(input, in_len, output, &out_len, NULL);
+  r = lzo1x_decompress(input, &in_len, output, &out_len, NULL);
 
   if (r == LZO_E_OK) {
     return 0;
@@ -150,7 +150,10 @@ Handle<Value> lzo_decompress(const Arguments &args) {
       return VException(e);
     }
 
-    return scope.Close(Integer::New(output_len));
+    Handle<Array> array = Array::New(2);
+    array->Set(0, Integer::New(input_len));
+    array->Set(1, Integer::New(output_len));
+    return scope.Close(array);
   } else if (args.Length() == 5) {
     if (!Buffer::HasInstance(args[0]))
       return VException("Argument 1 should be a buffer");
@@ -158,25 +161,28 @@ Handle<Value> lzo_decompress(const Arguments &args) {
       return VException("Argument 4 should be a buffer");
 
     v8::Handle<v8::Object> inputBuffer = args[0]->ToObject();
-    int srcOff = args[1]->Int32Value();
-    int srcLen = args[2]->Int32Value();
+    int input_offset = args[1]->Int32Value();
+    lzo_uint input_len = args[2]->Int32Value();
     v8::Handle<v8::Object> outputBuffer = args[3]->ToObject();
-    int outOff = args[4]->Int32Value();
+    int output_offset = args[4]->Int32Value();
     
     lzo_uint output_len = 0;//not read before written, I guess
     
     try {
       decompress(
-        ((unsigned char *) Buffer::Data(inputBuffer)) + srcOff, 
-        ((unsigned char *) Buffer::Data(outputBuffer)) + outOff, 
-        srcLen,
+        ((unsigned char *) Buffer::Data(inputBuffer)) + input_offset, 
+        ((unsigned char *) Buffer::Data(outputBuffer)) + output_offset, 
+        input_len,
         output_len
       );
     } catch (const char* e) {
       return VException(e);
     }
 
-    return scope.Close(Integer::New(output_len));
+    Handle<Array> array = Array::New(2);
+    array->Set(0, Integer::New(input_len));
+    array->Set(1, Integer::New(output_len));
+    return scope.Close(array);
   } else {
     return VException("Two or five arguments should be provided: decompress(compressedBuffer, outputBuffer) or decompress(compressedBuffer, srcOff, srcLen, outputBuffer, outOff)");
   }
