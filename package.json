@@ -3,7 +3,12 @@
   "version": "0.1.1",
   "description": "A very low-level wrapper around the minilzo fast compression library",
   "author": "Liam Doherty",
+	"repository": {
+    "type": "git",
+    "url": "git://github.com/morhaus/mini-lzo-wrapper.git"
+  },
   "main": "index.js",
+
   "scripts": {
     "test": "node test/lzo-compress-decompress.js"
   },
