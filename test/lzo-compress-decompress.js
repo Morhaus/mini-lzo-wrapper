@@ -1,4 +1,4 @@
-var lzo = require('../build/Release/lzo.node');
+var lzo = require('../');
 var assert = require('assert');
 
 var data, input, output, compressedLen, compressed, decompressedLen, decompressed;
