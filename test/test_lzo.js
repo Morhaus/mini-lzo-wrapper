@@ -1,14 +1,20 @@
+var lzo = require('../build/Release/lzo.node');
+var assert = require('assert');
 
-var lzo = require('mini-lzo-wrapper');
+var data, input, output, compressedLen, compressed, decompressedLen, decompressed;
 
-var sys = require('sys');
+data = "hello world";
 
-var uncompBuffer = new Buffer("this is some text, this is some more text, this is some text, this is some more text, this is some text, this is some more text");
-var compBuffer = new Buffer(uncompBuffer.length * 2);//this is overkill
+input = new Buffer("hello world");
+output = new Buffer(100);
 
-sys.debug('compressing ' + uncompBuffer.length + ' bytes.');
-sys.debug('target buffer has ' + compBuffer.length + ' bytes.');
+compressedLen = lzo.compress(input, output);
+compressed = output.slice(0, compressedLen);
 
-var len = lzo.compress(uncompBuffer, compBuffer);
+input = compressed;
+output = new Buffer(100);
 
-sys.debug('compress happened: ' + len + ' < ' + uncompBuffer.length + ' < ' + compBuffer.length);
+decompressedLen = lzo.decompress(input, output);
+decompressed = output.slice(0, decompressedLen);
+
+assert.equal(data, decompressed.toString());

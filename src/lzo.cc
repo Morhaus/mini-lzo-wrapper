@@ -15,8 +15,7 @@ http://www.oberhumer.com/opensource/lzo/
 using namespace v8;
 using namespace node;
 
-static Handle<Value>
-VException(const char *msg) {
+static Handle<Value> VException(const char *msg) {
   HandleScope scope;
   return ThrowException(Exception::Error(String::New(msg)));
 }
@@ -30,46 +29,38 @@ int compress(const unsigned char *input, unsigned char *output, lzo_uint in_len,
   int r;
 
   if (lzo_init() != LZO_E_OK){
-    printf("lzo cannot initialize: this usually indicates a compiler error");
     throw "lzo cannot initialize: this usually indicates a compiler error";
+    return -1;
   }
 
-  r = lzo1x_1_compress(input,in_len,output,&out_len,wrkmem);
+  r = lzo1x_1_compress(input, in_len, output, &out_len, wrkmem);
 
   if (r == LZO_E_OK) {
     return 0;
   } else {
-    printf("lzo failed to compress");
     throw "lzo failed to compress";
     return -1;
   }
 }
 
-int
-decompress(const unsigned char *input, unsigned char *output, lzo_uint in_len, lzo_uint& out_len)
-{
+int decompress(const unsigned char *input, unsigned char *output, lzo_uint in_len, lzo_uint& out_len) {
   int r;
 
   if (lzo_init() != LZO_E_OK) {
-    printf("lzo cannot initialize: this usually indicates a compiler error");
     throw "lzo cannot initialize: this usually indicates a compiler error";
   }
 
-  r = lzo1x_decompress(input,in_len,output,&out_len,NULL);
+  r = lzo1x_decompress(input, in_len, output, &out_len, NULL);
 
   if (r == LZO_E_OK) {
     return 0;
   } else {
     if (r == LZO_E_OUTPUT_OVERRUN) {
-      printf("\nlzo error: LZO_E_OUTPUT_OVERRUN\n");
-          //throw "lzo failed to decompress";
-    } else if(r ==  LZO_E_INPUT_NOT_CONSUMED) {
-      printf("\nlzo error: LZO_E_INPUT_NOT_CONSUMED\n");
-      printf("This usually indicates that your compressed data\ndoes not fill the entire buffer you provided.\n\n");
-          //throw "lzo failed to decompress";
+      throw "LZO_E_OUTPUT_OVERRUN";
+    } else if (r ==  LZO_E_INPUT_NOT_CONSUMED) {
+      throw "LZO_E_INPUT_NOT_CONSUMED";
     } else {
-      printf("\nERROR: lzo failed to decompress: %i\n", r);
-      //throw "lzo failed to decompress";
+      throw "";
     }
     return -1;
   }
@@ -86,18 +77,21 @@ Handle<Value> lzo_compress(const Arguments &args) {
 
     v8::Handle<v8::Object> inputBuffer = args[0]->ToObject();
     v8::Handle<v8::Object> outputBuffer = args[1]->ToObject();
-    
+
+    lzo_uint input_len = Buffer::Length(inputBuffer);    
     lzo_uint output_len = Buffer::Length(outputBuffer);//not sure if output_len is read before it is written...
-    
-    lzo_uint input_len = Buffer::Length(inputBuffer);
-    
-    compress(
-      (unsigned char *) Buffer::Data(inputBuffer), 
-      (unsigned char *) Buffer::Data(outputBuffer), 
-      input_len,
-      output_len
-    );
-    
+        
+    try {
+      compress(
+        (unsigned char *) Buffer::Data(inputBuffer), 
+        (unsigned char *) Buffer::Data(outputBuffer), 
+        input_len,
+        output_len
+      );
+    } catch (const char* e) {
+      return VException(e);
+    }
+
     return scope.Close(Integer::New(output_len));
   } else if (args.Length() == 5) {
     if (!Buffer::HasInstance(args[0]))
@@ -111,16 +105,19 @@ Handle<Value> lzo_compress(const Arguments &args) {
     v8::Handle<v8::Object> outputBuffer = args[3]->ToObject();
     int outOff = args[4]->Int32Value();
     
-    lzo_uint output_len = Buffer::Length(outputBuffer) - outOff;//looks like output_len is read before it is written...
-    
     lzo_uint input_len = srcLen;
-    
-    compress(
-      ((unsigned char *) Buffer::Data(inputBuffer)) + srcOff, 
-      ((unsigned char *) Buffer::Data(outputBuffer)) + outOff,
-      input_len,
-      output_len
-    );
+    lzo_uint output_len = Buffer::Length(outputBuffer) - outOff;//looks like output_len is read before it is written...
+
+    try {
+      compress(
+        ((unsigned char *) Buffer::Data(inputBuffer)) + srcOff, 
+        ((unsigned char *) Buffer::Data(outputBuffer)) + outOff,
+        input_len,
+        output_len
+      );
+    } catch (const char* e) {
+      return VException(e);
+    }
 
     return scope.Close(Integer::New(output_len));                    
   } else {
@@ -140,14 +137,21 @@ Handle<Value> lzo_decompress(const Arguments &args) {
     v8::Handle<v8::Object> inputBuffer = args[0]->ToObject();
     v8::Handle<v8::Object> outputBuffer = args[1]->ToObject();
     
+    lzo_uint input_len = Buffer::Length(inputBuffer);
     lzo_uint output_len = Buffer::Length(outputBuffer);//not sure if output_len is read before it is written...
-    
-    decompress(
-      (unsigned char *) Buffer::Data(inputBuffer), 
-      (unsigned char *) Buffer::Data(outputBuffer), 
-      Buffer::Length(inputBuffer),
-      output_len
-    );
+
+    try {
+      decompress(
+        (unsigned char *) Buffer::Data(inputBuffer), 
+        (unsigned char *) Buffer::Data(outputBuffer), 
+        input_len,
+        output_len
+      );
+    } catch (const char* e) {
+      return VException(e);
+    }
+
+    return scope.Close(Integer::New(output_len));
   } else if (args.Length() == 5) {
     if (!Buffer::HasInstance(args[0]))
       return VException("Argument 1 should be a buffer");
@@ -162,16 +166,21 @@ Handle<Value> lzo_decompress(const Arguments &args) {
     
     lzo_uint output_len = 0;//not read before written, I guess
     
-    decompress(
-      ((unsigned char *) Buffer::Data(inputBuffer)) + srcOff, 
-      ((unsigned char *) Buffer::Data(outputBuffer)) + outOff, 
-      srcLen,
-      output_len
-    );
+    try {
+      decompress(
+        ((unsigned char *) Buffer::Data(inputBuffer)) + srcOff, 
+        ((unsigned char *) Buffer::Data(outputBuffer)) + outOff, 
+        srcLen,
+        output_len
+      );
+    } catch (const char* e) {
+      return VException(e);
+    }
+
+    return scope.Close(Integer::New(output_len));
   } else {
     return VException("Two or five arguments should be provided: decompress(compressedBuffer, outputBuffer) or decompress(compressedBuffer, srcOff, srcLen, outputBuffer, outOff)");
   }
-  return Undefined();
 }
 
 void init (Handle<Object> exports) {
